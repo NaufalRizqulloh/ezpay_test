@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import 'package:ezpay_test/constants/app_colors.dart';
 
+import 'package:ezpay_test/screens/register.dart';
 import 'package:ezpay_test/screens/customer/customer_home_screen.dart';
 import 'package:ezpay_test/screens/merchant/merchant_home_screen.dart';
 
@@ -266,6 +267,27 @@ class _LoginPageState extends State<LoginPage> {
                                   color: Colors.white,
                                 ),
                               ),
+                            ),
+                            SizedBox(height: 16),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text('Belum punya akun?'),
+                                TextButton(
+                                  onPressed: () {
+                                    Navigator.pushReplacement(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) => RegisterPage(),
+                                      ),
+                                    );
+                                  },
+                                  child: Text(
+                                    'Daftar',
+                                    style: TextStyle(color: AppColors.primary),
+                                  ),
+                                ),
+                              ],
                             ),
                           ],
                         ),
