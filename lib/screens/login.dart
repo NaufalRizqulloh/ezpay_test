@@ -2,7 +2,7 @@
 
 import 'package:flutter/material.dart';
 
-import 'package:ezpay_test/core/constants/app_colors.dart';
+import 'package:ezpay_test/constants/app_colors.dart';
 
 import 'package:ezpay_test/screens/customer/customer_home_screen.dart';
 import 'package:ezpay_test/screens/merchant/merchant_home_screen.dart';

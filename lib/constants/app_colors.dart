@@ -33,6 +33,8 @@ class AppColors {
   static const Color error = Color(0xFFEF5350);
   static const Color info = Color(0xFF29B6F6);
 
+  static const textBlack = Color.fromARGB(255, 0, 0, 0);
+  static const textGrey = Color(0xFF4F4F4F);
   // Neutral colors
   static const Color background = Color(0xFFF5F5F5);
   static const Color surface = Colors.white;
