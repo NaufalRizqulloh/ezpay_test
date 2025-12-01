@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:ezpay_test/constants/app_colors.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:ezpay_test/screens/customer/payment_screen.dart';
 
 class CustomerQrisScreen extends StatefulWidget {
   @override
@@ -62,41 +63,41 @@ class _CustomerQrisScreenState extends State<CustomerQrisScreen> {
     }
   }
 
-  void _showQRCodeDialog(String code) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('QR Code Detected'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Code:', style: TextStyle(fontWeight: FontWeight.bold)),
-            SizedBox(height: 8),
-            SelectableText(code, style: TextStyle(fontSize: 14)),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              // Process payment with the scanned code
-              _processPayment(code);
-            },
-            style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
-            child: Text(
-              'Proceed to Payment',
-              style: TextStyle(color: Colors.white),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  // void _showQRCodeDialog(String code) {
+  //   showDialog(
+  //     context: context,
+  //     builder: (context) => AlertDialog(
+  //       title: Text('QR Code Detected'),
+  //       content: Column(
+  //         mainAxisSize: MainAxisSize.min,
+  //         crossAxisAlignment: CrossAxisAlignment.start,
+  //         children: [
+  //           Text('Code:', style: TextStyle(fontWeight: FontWeight.bold)),
+  //           SizedBox(height: 8),
+  //           SelectableText(code, style: TextStyle(fontSize: 14)),
+  //         ],
+  //       ),
+  //       actions: [
+  //         TextButton(
+  //           onPressed: () => Navigator.pop(context),
+  //           child: Text('Cancel'),
+  //         ),
+  //         ElevatedButton(
+  //           onPressed: () {
+  //             Navigator.pop(context);
+  //             // Process payment with the scanned code
+  //             _processPayment(code);
+  //           },
+  //           style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
+  //           child: Text(
+  //             'Proceed to Payment',
+  //             style: TextStyle(color: Colors.white),
+  //           ),
+  //         ),
+  //       ],
+  //     ),
+  //   );
+  // }
 
   void _showErrorDialog(String message) {
     showDialog(
@@ -115,15 +116,19 @@ class _CustomerQrisScreenState extends State<CustomerQrisScreen> {
   }
 
   void _processPayment(String code) {
-    // TODO: Implement payment processing
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Processing payment for: $code'),
-        duration: Duration(seconds: 2),
-      ),
-    );
     // Navigate to payment confirmation screen
-    // Navigator.push(context, MaterialPageRoute(builder: (_) => PaymentScreen(qrCode: code)));
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => PaymentScreen(qrCode: code)),
+    );
+  }
+
+  void _showQRCodeDialog(String code) {
+    // Directly navigate to payment screen
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => PaymentScreen(qrCode: code)),
+    );
   }
 
   @override

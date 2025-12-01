@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:ezpay_test/constants/app_colors.dart';
 import 'package:ezpay_test/screens/merchant/generate_qr_screen.dart';
 import 'package:ezpay_test/screens/merchant/transaction_history_screen.dart';
+import 'package:ezpay_test/services/transaction_manager.dart';
 
 class MerchantHomeScreen extends StatefulWidget {
   @override
@@ -12,39 +13,74 @@ class MerchantHomeScreen extends StatefulWidget {
 
 class _MerchantHomeScreenState extends State<MerchantHomeScreen> {
   // Dummy data
+  final String merchantId = "MERCHANT001";
   final String merchantName = "Warung Makan Sederhana";
-  final double todayRevenue = 1250000.0;
-  final double monthlyRevenue = 15750000.0;
-  final int todayTransactions = 45;
-  final int monthlyTransactions = 523;
+  late TransactionManager _transactionManager;
+  List<Map<String, dynamic>> recentTransactions = [];
+  double todayRevenue = 0.0;
+  double monthlyRevenue = 0.0;
+  int todayTransactions = 0;
+  int monthlyTransactions = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _transactionManager = TransactionManager();
+    _transactionManager.initializeDummyData(); // Load initial dummy data
+    _transactionManager.addListener(_updateTransactions);
+    _updateTransactions();
+  }
+
+  @override
+  void dispose() {
+    _transactionManager.removeListener(_updateTransactions);
+    super.dispose();
+  }
+
+  void _updateTransactions() {
+    setState(() {
+      recentTransactions = _transactionManager
+          .getMerchantTransactions(merchantId)
+          .take(4)
+          .toList();
+      todayRevenue = _transactionManager.getTodayRevenue(merchantId);
+      monthlyRevenue = _transactionManager.getMonthlyRevenue(merchantId);
+      todayTransactions = _transactionManager.getTodayTransactionCount(
+        merchantId,
+      );
+      monthlyTransactions = _transactionManager.getMonthlyTransactionCount(
+        merchantId,
+      );
+    });
+  }
 
   // Recent transactions
-  final List<Map<String, dynamic>> recentTransactions = [
-    {
-      'customer': 'Ahmad R.',
-      'amount': 50000.0,
-      'time': '2 min ago',
-      'status': 'success',
-    },
-    {
-      'customer': 'Siti M.',
-      'amount': 125000.0,
-      'time': '15 min ago',
-      'status': 'success',
-    },
-    {
-      'customer': 'Budi S.',
-      'amount': 75000.0,
-      'time': '1 hour ago',
-      'status': 'success',
-    },
-    {
-      'customer': 'Dewi K.',
-      'amount': 200000.0,
-      'time': '2 hours ago',
-      'status': 'success',
-    },
-  ];
+  // final List<Map<String, dynamic>> recentTransactions = [
+  //   {
+  //     'customer': 'Ahmad R.',
+  //     'amount': 50000.0,
+  //     'time': '2 min ago',
+  //     'status': 'success',
+  //   },
+  //   {
+  //     'customer': 'Siti M.',
+  //     'amount': 125000.0,
+  //     'time': '15 min ago',
+  //     'status': 'success',
+  //   },
+  //   {
+  //     'customer': 'Budi S.',
+  //     'amount': 75000.0,
+  //     'time': '1 hour ago',
+  //     'status': 'success',
+  //   },
+  //   {
+  //     'customer': 'Dewi K.',
+  //     'amount': 200000.0,
+  //     'time': '2 hours ago',
+  //     'status': 'success',
+  //   },
+  // ];
 
   void _generateQR() {
     Navigator.push(
@@ -57,8 +93,7 @@ class _MerchantHomeScreenState extends State<MerchantHomeScreen> {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) =>
-            TransactionHistoryScreen(transactions: recentTransactions),
+        builder: (_) => TransactionHistoryScreen(merchantId: merchantId),
       ),
     );
   }

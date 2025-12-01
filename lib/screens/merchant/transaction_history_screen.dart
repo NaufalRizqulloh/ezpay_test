@@ -2,12 +2,12 @@
 
 import 'package:flutter/material.dart';
 import 'package:ezpay_test/constants/app_colors.dart';
+import 'package:ezpay_test/services/transaction_manager.dart';
 
 class TransactionHistoryScreen extends StatefulWidget {
-  final List<Map<String, dynamic>> transactions;
+  final String merchantId;
 
-  const TransactionHistoryScreen({Key? key, required this.transactions})
-    : super(key: key);
+  TransactionHistoryScreen({this.merchantId = 'MERCHANT001'});
 
   @override
   _TransactionHistoryScreenState createState() =>
@@ -15,238 +15,76 @@ class TransactionHistoryScreen extends StatefulWidget {
 }
 
 class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
+  late TransactionManager _transactionManager;
+  List<Map<String, dynamic>> transactions = [];
   String selectedFilter = 'All';
-  final List<String> filters = ['All', 'Today', 'This Week', 'This Month'];
-
-  // Extended dummy transactions
-  List<Map<String, dynamic>> allTransactions = [];
 
   @override
   void initState() {
     super.initState();
-    _generateDummyTransactions();
+    _transactionManager = TransactionManager();
+    _transactionManager.addListener(_updateTransactions);
+    _updateTransactions();
   }
 
-  void _generateDummyTransactions() {
-    allTransactions = [
-      {
-        'customer': 'Ahmad R.',
-        'amount': 50000.0,
-        'time': '2 min ago',
-        'date': DateTime.now().subtract(Duration(minutes: 2)),
-        'status': 'success',
-        'paymentMethod': 'GoPay',
-        'transactionId': 'TRX20241201001',
-      },
-      {
-        'customer': 'Siti M.',
-        'amount': 125000.0,
-        'time': '15 min ago',
-        'date': DateTime.now().subtract(Duration(minutes: 15)),
-        'status': 'success',
-        'paymentMethod': 'OVO',
-        'transactionId': 'TRX20241201002',
-      },
-      {
-        'customer': 'Budi S.',
-        'amount': 75000.0,
-        'time': '1 hour ago',
-        'date': DateTime.now().subtract(Duration(hours: 1)),
-        'status': 'success',
-        'paymentMethod': 'ShopeePay',
-        'transactionId': 'TRX20241201003',
-      },
-      {
-        'customer': 'Dewi K.',
-        'amount': 200000.0,
-        'time': '2 hours ago',
-        'date': DateTime.now().subtract(Duration(hours: 2)),
-        'status': 'success',
-        'paymentMethod': 'BCA',
-        'transactionId': 'TRX20241201004',
-      },
-      {
-        'customer': 'Eko P.',
-        'amount': 45000.0,
-        'time': '3 hours ago',
-        'date': DateTime.now().subtract(Duration(hours: 3)),
-        'status': 'success',
-        'paymentMethod': 'GoPay',
-        'transactionId': 'TRX20241201005',
-      },
-      {
-        'customer': 'Rina W.',
-        'amount': 150000.0,
-        'time': 'Yesterday',
-        'date': DateTime.now().subtract(Duration(days: 1)),
-        'status': 'success',
-        'paymentMethod': 'OVO',
-        'transactionId': 'TRX20241130001',
-      },
-      {
-        'customer': 'Joko T.',
-        'amount': 90000.0,
-        'time': 'Yesterday',
-        'date': DateTime.now().subtract(Duration(days: 1)),
-        'status': 'success',
-        'paymentMethod': 'ShopeePay',
-        'transactionId': 'TRX20241130002',
-      },
-      {
-        'customer': 'Ani S.',
-        'amount': 65000.0,
-        'time': '2 days ago',
-        'date': DateTime.now().subtract(Duration(days: 2)),
-        'status': 'success',
-        'paymentMethod': 'GoPay',
-        'transactionId': 'TRX20241129001',
-      },
-    ];
+  @override
+  void dispose() {
+    _transactionManager.removeListener(_updateTransactions);
+    super.dispose();
   }
 
-  List<Map<String, dynamic>> get filteredTransactions {
-    if (selectedFilter == 'All') {
-      return allTransactions;
-    } else if (selectedFilter == 'Today') {
-      return allTransactions
-          .where(
-            (t) =>
-                t['date'].day == DateTime.now().day &&
-                t['date'].month == DateTime.now().month,
-          )
-          .toList();
-    } else if (selectedFilter == 'This Week') {
-      final now = DateTime.now();
-      final weekAgo = now.subtract(Duration(days: 7));
-      return allTransactions.where((t) => t['date'].isAfter(weekAgo)).toList();
-    } else {
-      final now = DateTime.now();
-      return allTransactions
-          .where(
-            (t) => t['date'].month == now.month && t['date'].year == now.year,
-          )
-          .toList();
-    }
+  void _updateTransactions() {
+    setState(() {
+      transactions = _transactionManager.getMerchantTransactions(
+        widget.merchantId,
+      );
+      _applyFilter();
+    });
+  }
+
+  void _applyFilter() {
+    final now = DateTime.now();
+
+    setState(() {
+      if (selectedFilter == 'Today') {
+        final startOfDay = DateTime(now.year, now.month, now.day);
+        final startTimestamp = startOfDay.millisecondsSinceEpoch;
+        transactions = _transactionManager
+            .getMerchantTransactions(widget.merchantId)
+            .where((t) => t['timestamp'] >= startTimestamp)
+            .toList();
+      } else if (selectedFilter == 'This Week') {
+        final startOfWeek = now.subtract(Duration(days: now.weekday - 1));
+        final startTimestamp = DateTime(
+          startOfWeek.year,
+          startOfWeek.month,
+          startOfWeek.day,
+        ).millisecondsSinceEpoch;
+        transactions = _transactionManager
+            .getMerchantTransactions(widget.merchantId)
+            .where((t) => t['timestamp'] >= startTimestamp)
+            .toList();
+      } else if (selectedFilter == 'This Month') {
+        final startOfMonth = DateTime(now.year, now.month, 1);
+        final startTimestamp = startOfMonth.millisecondsSinceEpoch;
+        transactions = _transactionManager
+            .getMerchantTransactions(widget.merchantId)
+            .where((t) => t['timestamp'] >= startTimestamp)
+            .toList();
+      } else {
+        transactions = _transactionManager.getMerchantTransactions(
+          widget.merchantId,
+        );
+      }
+    });
   }
 
   double get totalAmount {
-    return filteredTransactions.fold(
-      0.0,
-      (sum, transaction) => sum + transaction['amount'],
-    );
+    return transactions.fold(0.0, (sum, t) => sum + t['amount']);
   }
 
   String _formatCurrency(double amount) {
     return 'Rp ${amount.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]}.')}';
-  }
-
-  Color _getPaymentMethodColor(String method) {
-    switch (method) {
-      case 'GoPay':
-        return Color(0xFF00AA13);
-      case 'OVO':
-        return Color(0xFF4C3494);
-      case 'BCA':
-        return Color(0xFF0066AE);
-      case 'ShopeePay':
-        return Color(0xFFEE4D2D);
-      default:
-        return Colors.grey;
-    }
-  }
-
-  void _showTransactionDetail(Map<String, dynamic> transaction) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        padding: EdgeInsets.all(24),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.only(
-            topLeft: Radius.circular(24),
-            topRight: Radius.circular(24),
-          ),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-              child: Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: Colors.grey[300],
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-            ),
-            SizedBox(height: 24),
-            Center(
-              child: Icon(Icons.check_circle, color: Colors.green, size: 64),
-            ),
-            SizedBox(height: 16),
-            Center(
-              child: Text(
-                'Payment Success',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black87,
-                ),
-              ),
-            ),
-            SizedBox(height: 24),
-            _buildDetailRow('Transaction ID', transaction['transactionId']),
-            _buildDetailRow('Customer', transaction['customer']),
-            _buildDetailRow('Amount', _formatCurrency(transaction['amount'])),
-            _buildDetailRow('Payment Method', transaction['paymentMethod']),
-            _buildDetailRow('Date & Time', transaction['time']),
-            _buildDetailRow('Status', 'Success'),
-            SizedBox(height: 24),
-            ElevatedButton(
-              onPressed: () => Navigator.pop(context),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                minimumSize: Size(double.infinity, 50),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-              child: Text(
-                'Close',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildDetailRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8.0),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(label, style: TextStyle(fontSize: 14, color: Colors.grey[600])),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-              color: Colors.black87,
-            ),
-          ),
-        ],
-      ),
-    );
   }
 
   @override
@@ -266,6 +104,7 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
         children: [
           // Summary Card
           Container(
+            width: double.infinity,
             margin: EdgeInsets.all(16),
             padding: EdgeInsets.all(20),
             decoration: BoxDecoration(
@@ -283,96 +122,46 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
                 ),
               ],
             ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Total Revenue',
-                      style: TextStyle(color: Colors.white70, fontSize: 14),
-                    ),
-                    SizedBox(height: 8),
-                    Text(
-                      _formatCurrency(totalAmount),
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
+                Text(
+                  'Total Amount ($selectedFilter)',
+                  style: TextStyle(color: Colors.white70, fontSize: 14),
                 ),
-                Container(
-                  padding: EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.white24,
-                    borderRadius: BorderRadius.circular(12),
+                SizedBox(height: 8),
+                Text(
+                  _formatCurrency(totalAmount),
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 32,
+                    fontWeight: FontWeight.bold,
                   ),
-                  child: Column(
-                    children: [
-                      Text(
-                        '${filteredTransactions.length}',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      Text(
-                        'Transactions',
-                        style: TextStyle(color: Colors.white70, fontSize: 12),
-                      ),
-                    ],
-                  ),
+                ),
+                SizedBox(height: 4),
+                Text(
+                  '${transactions.length} transaction${transactions.length != 1 ? 's' : ''}',
+                  style: TextStyle(color: Colors.white70, fontSize: 14),
                 ),
               ],
             ),
           ),
 
-          // Filter Buttons
+          // Filter Chips
           Container(
             height: 50,
             margin: EdgeInsets.symmetric(horizontal: 16),
-            child: ListView.builder(
+            child: ListView(
               scrollDirection: Axis.horizontal,
-              itemCount: filters.length,
-              itemBuilder: (context, index) {
-                final filter = filters[index];
-                final isSelected = selectedFilter == filter;
-                return GestureDetector(
-                  onTap: () {
-                    setState(() {
-                      selectedFilter = filter;
-                    });
-                  },
-                  child: Container(
-                    margin: EdgeInsets.only(right: 8),
-                    padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                    decoration: BoxDecoration(
-                      color: isSelected ? AppColors.primary : Colors.white,
-                      borderRadius: BorderRadius.circular(25),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.05),
-                          blurRadius: 4,
-                          offset: Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                    child: Text(
-                      filter,
-                      style: TextStyle(
-                        color: isSelected ? Colors.white : Colors.black87,
-                        fontWeight: isSelected
-                            ? FontWeight.bold
-                            : FontWeight.normal,
-                      ),
-                    ),
-                  ),
-                );
-              },
+              children: [
+                _buildFilterChip('All'),
+                SizedBox(width: 8),
+                _buildFilterChip('Today'),
+                SizedBox(width: 8),
+                _buildFilterChip('This Week'),
+                SizedBox(width: 8),
+                _buildFilterChip('This Month'),
+              ],
             ),
           ),
 
@@ -380,34 +169,48 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
 
           // Transaction List
           Expanded(
-            child: filteredTransactions.isEmpty
+            child: transactions.isEmpty
                 ? Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Icon(
-                          Icons.receipt_long,
-                          size: 64,
+                          Icons.receipt_long_outlined,
+                          size: 80,
                           color: Colors.grey[400],
                         ),
                         SizedBox(height: 16),
                         Text(
-                          'No transactions found',
+                          'No transactions yet',
                           style: TextStyle(
-                            fontSize: 16,
+                            fontSize: 18,
                             color: Colors.grey[600],
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        SizedBox(height: 8),
+                        Text(
+                          'Transactions will appear here',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.grey[500],
                           ),
                         ),
                       ],
                     ),
                   )
-                : ListView.builder(
-                    padding: EdgeInsets.symmetric(horizontal: 16),
-                    itemCount: filteredTransactions.length,
-                    itemBuilder: (context, index) {
-                      final transaction = filteredTransactions[index];
-                      return _buildTransactionCard(transaction);
+                : RefreshIndicator(
+                    onRefresh: () async {
+                      _updateTransactions();
                     },
+                    child: ListView.builder(
+                      padding: EdgeInsets.symmetric(horizontal: 16),
+                      itemCount: transactions.length,
+                      itemBuilder: (context, index) {
+                        final transaction = transactions[index];
+                        return _buildTransactionCard(transaction);
+                      },
+                    ),
                   ),
           ),
         ],
@@ -415,107 +218,182 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
     );
   }
 
-  Widget _buildTransactionCard(Map<String, dynamic> transaction) {
+  Widget _buildFilterChip(String label) {
+    final isSelected = selectedFilter == label;
     return GestureDetector(
-      onTap: () => _showTransactionDetail(transaction),
+      onTap: () {
+        setState(() {
+          selectedFilter = label;
+          _applyFilter();
+        });
+      },
       child: Container(
-        margin: EdgeInsets.only(bottom: 12),
-        padding: EdgeInsets.all(16),
+        padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
         decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 8,
-              offset: Offset(0, 2),
-            ),
-          ],
+          color: isSelected ? AppColors.primary : Colors.white,
+          borderRadius: BorderRadius.circular(25),
+          border: Border.all(
+            color: isSelected ? AppColors.primary : Colors.grey[300]!,
+          ),
+          boxShadow: isSelected
+              ? [
+                  BoxShadow(
+                    color: AppColors.primary.withOpacity(0.3),
+                    blurRadius: 8,
+                    offset: Offset(0, 2),
+                  ),
+                ]
+              : [],
         ),
-        child: Row(
-          children: [
-            Container(
-              width: 50,
-              height: 50,
-              decoration: BoxDecoration(
-                color: _getPaymentMethodColor(
-                  transaction['paymentMethod'],
-                ).withOpacity(0.1),
-                shape: BoxShape.circle,
+        child: Text(
+          label,
+          style: TextStyle(
+            color: isSelected ? Colors.white : Colors.black87,
+            fontWeight: FontWeight.w600,
+            fontSize: 14,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTransactionCard(Map<String, dynamic> transaction) {
+    return Container(
+      margin: EdgeInsets.only(bottom: 12),
+      padding: EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 8,
+            offset: Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 50,
+                height: 50,
+                decoration: BoxDecoration(
+                  color: Colors.green.withOpacity(0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(Icons.check_circle, color: Colors.green, size: 28),
               ),
-              child: Icon(
-                Icons.account_balance_wallet,
-                color: _getPaymentMethodColor(transaction['paymentMethod']),
-                size: 24,
+              SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      transaction['customer'],
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
+                      ),
+                    ),
+                    SizedBox(height: 4),
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.access_time,
+                          size: 12,
+                          color: Colors.grey[600],
+                        ),
+                        SizedBox(width: 4),
+                        Text(
+                          transaction['time'],
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
-            ),
-            SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   Text(
-                    transaction['customer'],
+                    _formatCurrency(transaction['amount']),
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
-                      color: Colors.black87,
+                      color: Colors.green,
                     ),
                   ),
                   SizedBox(height: 4),
-                  Row(
-                    children: [
-                      Text(
-                        transaction['paymentMethod'],
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey[600],
-                          fontWeight: FontWeight.w500,
-                        ),
+                  Container(
+                    padding: EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(
+                      transaction['payment_method'],
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: Colors.blue[700],
+                        fontWeight: FontWeight.w600,
                       ),
-                      SizedBox(width: 8),
-                      Text('•', style: TextStyle(color: Colors.grey[400])),
-                      SizedBox(width: 8),
-                      Text(
-                        transaction['time'],
-                        style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-                      ),
-                    ],
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          if (transaction['note'] != null &&
+              transaction['note'].isNotEmpty) ...[
+            SizedBox(height: 12),
+            Container(
+              padding: EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.grey[100],
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.note_outlined, size: 14, color: Colors.grey[600]),
+                  SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      transaction['note'],
+                      style: TextStyle(fontSize: 12, color: Colors.grey[700]),
+                    ),
                   ),
                 ],
               ),
             ),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text(
-                  _formatCurrency(transaction['amount']),
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.green,
-                  ),
-                ),
-                SizedBox(height: 4),
-                Container(
-                  padding: EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: Colors.green.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Text(
-                    'Success',
-                    style: TextStyle(
-                      fontSize: 10,
-                      color: Colors.green,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-              ],
-            ),
           ],
-        ),
+          SizedBox(height: 8),
+          Divider(height: 1, color: Colors.grey[300]),
+          SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'ID: ${transaction['transaction_id']}',
+                style: TextStyle(fontSize: 10, color: Colors.grey[600]),
+              ),
+              Text(
+                transaction['status'].toUpperCase(),
+                style: TextStyle(
+                  fontSize: 10,
+                  color: Colors.green,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
