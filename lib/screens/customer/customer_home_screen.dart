@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:ezpay_test/components/box_decoration.dart';
 import 'package:ezpay_test/constants/app_colors.dart';
 import 'package:ezpay_test/screens/customer/customer_qris_screen.dart';
+import 'package:ezpay_test/services/wallet_manager.dart';
 
 class CustomerHomeScreen extends StatefulWidget {
   @override
@@ -12,37 +13,85 @@ class CustomerHomeScreen extends StatefulWidget {
 
 class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
   // E-wallet data
-  final List<Map<String, dynamic>> ewallets = [
-    {
-      'name': 'GoPay',
-      'balance': 250000.0,
-      'color': Color(0xFF00AA13),
-      'icon': Icons.account_balance_wallet,
-    },
-    {
-      'name': 'OVO',
-      'balance': 150000.0,
-      'color': Color(0xFF4C3494),
-      'icon': Icons.account_balance_wallet,
-    },
-    {
-      'name': 'BCA',
-      'balance': 500000.0,
-      'color': Color(0xFF0066AE),
-      'icon': Icons.account_balance,
-    },
-    {
-      'name': 'ShopeePay',
-      'balance': 100000.0,
-      'color': Color(0xFFEE4D2D),
-      'icon': Icons.shopping_bag,
-    },
-  ];
+  late WalletManager _walletManager;
+  List<Map<String, dynamic>> ewallets = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _walletManager = WalletManager();
+    _walletManager.addListener(_updateWallets);
+    _updateWallets();
+  }
+
+  @override
+  void dispose() {
+    _walletManager.removeListener(_updateWallets);
+    super.dispose();
+  }
+
+  void _updateWallets() {
+    setState(() {
+      ewallets = _walletManager.getCustomerWallets().map((wallet) {
+        return {
+          'name': wallet['name'],
+          'balance': wallet['balance'],
+          'color': Color(wallet['color']),
+          'icon': _getIconData(wallet['icon']),
+        };
+      }).toList();
+    });
+  }
+
+  IconData _getIconData(String iconName) {
+    switch (iconName) {
+      case 'account_balance_wallet':
+        return Icons.account_balance_wallet;
+      case 'account_balance':
+        return Icons.account_balance;
+      case 'shopping_bag':
+        return Icons.shopping_bag;
+      default:
+        return Icons.account_balance_wallet;
+    }
+  }
 
   // Calculate total balance
   double get totalBalance {
-    return ewallets.fold(0, (sum, wallet) => sum + wallet['balance']);
+    return _walletManager.getTotalCustomerBalance();
   }
+
+  // final List<Map<String, dynamic>> ewallets = [
+  //   {
+  //     'name': 'GoPay',
+  //     'balance': 250000.0,
+  //     'color': Color(0xFF00AA13),
+  //     'icon': Icons.account_balance_wallet,
+  //   },
+  //   {
+  //     'name': 'OVO',
+  //     'balance': 150000.0,
+  //     'color': Color(0xFF4C3494),
+  //     'icon': Icons.account_balance_wallet,
+  //   },
+  //   {
+  //     'name': 'BCA',
+  //     'balance': 500000.0,
+  //     'color': Color(0xFF0066AE),
+  //     'icon': Icons.account_balance,
+  //   },
+  //   {
+  //     'name': 'ShopeePay',
+  //     'balance': 100000.0,
+  //     'color': Color(0xFFEE4D2D),
+  //     'icon': Icons.shopping_bag,
+  //   },
+  // ];
+
+  // // Calculate total balance
+  // double get totalBalance {
+  //   return ewallets.fold(0, (sum, wallet) => sum + wallet['balance']);
+  // }
 
   void _scanQris() {
     Navigator.push(

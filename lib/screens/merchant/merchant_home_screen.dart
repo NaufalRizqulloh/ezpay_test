@@ -5,6 +5,7 @@ import 'package:ezpay_test/constants/app_colors.dart';
 import 'package:ezpay_test/screens/merchant/generate_qr_screen.dart';
 import 'package:ezpay_test/screens/merchant/transaction_history_screen.dart';
 import 'package:ezpay_test/services/transaction_manager.dart';
+import 'package:ezpay_test/services/wallet_manager.dart';
 
 class MerchantHomeScreen extends StatefulWidget {
   @override
@@ -12,32 +13,42 @@ class MerchantHomeScreen extends StatefulWidget {
 }
 
 class _MerchantHomeScreenState extends State<MerchantHomeScreen> {
-  // Dummy data
   final String merchantId = "MERCHANT001";
   final String merchantName = "Warung Makan Sederhana";
+
   late TransactionManager _transactionManager;
+  late WalletManager _walletManager;
+
   List<Map<String, dynamic>> recentTransactions = [];
   double todayRevenue = 0.0;
   double monthlyRevenue = 0.0;
   int todayTransactions = 0;
   int monthlyTransactions = 0;
+  double merchantBalance = 0.0;
 
   @override
   void initState() {
     super.initState();
     _transactionManager = TransactionManager();
-    _transactionManager.initializeDummyData(); // Load initial dummy data
-    _transactionManager.addListener(_updateTransactions);
-    _updateTransactions();
+    _walletManager = WalletManager();
+
+    _transactionManager.initializeDummyData();
+    _walletManager.initializeMerchant(merchantId, initialBalance: 5000000.0);
+
+    _transactionManager.addListener(_updateData);
+    _walletManager.addListener(_updateData);
+
+    _updateData();
   }
 
   @override
   void dispose() {
-    _transactionManager.removeListener(_updateTransactions);
+    _transactionManager.removeListener(_updateData);
+    _walletManager.removeListener(_updateData);
     super.dispose();
   }
 
-  void _updateTransactions() {
+  void _updateData() {
     setState(() {
       recentTransactions = _transactionManager
           .getMerchantTransactions(merchantId)
@@ -51,6 +62,7 @@ class _MerchantHomeScreenState extends State<MerchantHomeScreen> {
       monthlyTransactions = _transactionManager.getMonthlyTransactionCount(
         merchantId,
       );
+      merchantBalance = _walletManager.getMerchantBalance(merchantId);
     });
   }
 
@@ -250,6 +262,61 @@ class _MerchantHomeScreenState extends State<MerchantHomeScreen> {
                             ),
                           ),
                         ],
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            // Add this after the Revenue Summary Card in the build method
+            SizedBox(height: 16),
+
+            // Merchant Balance Card
+            Container(
+              width: double.infinity,
+              margin: EdgeInsets.symmetric(horizontal: 16),
+              padding: EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 8,
+                    offset: Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    padding: EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.green.withOpacity(0.1),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      Icons.account_balance_wallet,
+                      color: Colors.green,
+                      size: 28,
+                    ),
+                  ),
+                  SizedBox(width: 16),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Merchant Balance',
+                        style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                      ),
+                      SizedBox(height: 4),
+                      Text(
+                        _formatCurrency(merchantBalance),
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.green,
+                        ),
                       ),
                     ],
                   ),

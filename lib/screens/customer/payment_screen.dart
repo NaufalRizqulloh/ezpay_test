@@ -2,8 +2,9 @@
 
 import 'package:flutter/material.dart';
 import 'package:ezpay_test/constants/app_colors.dart';
-import 'dart:convert';
+import 'package:ezpay_test/services/wallet_manager.dart';
 import 'package:ezpay_test/services/transaction_manager.dart';
+import 'dart:convert';
 
 class PaymentScreen extends StatefulWidget {
   final String qrCode;
@@ -19,43 +20,49 @@ class _PaymentScreenState extends State<PaymentScreen> {
   String? selectedWallet;
   bool isProcessing = false;
 
-  // Available e-wallets with balances
-  // (Nanti bisa diganti WalletService, tapi sekarang pakai lokal dulu biar aman)
-  final List<Map<String, dynamic>> ewallets = [
-    {
-      'id': 'gopay',
-      'name': 'GoPay',
-      'balance': 250000.0,
-      'color': Color(0xFF00AA13),
-      'icon': Icons.account_balance_wallet,
-    },
-    {
-      'id': 'ovo',
-      'name': 'OVO',
-      'balance': 150000.0,
-      'color': Color(0xFF4C3494),
-      'icon': Icons.account_balance_wallet,
-    },
-    {
-      'id': 'bca',
-      'name': 'BCA',
-      'balance': 500000.0,
-      'color': Color(0xFF0066AE),
-      'icon': Icons.account_balance,
-    },
-    {
-      'id': 'shopeepay',
-      'name': 'ShopeePay',
-      'balance': 100000.0,
-      'color': Color(0xFFEE4D2D),
-      'icon': Icons.shopping_bag,
-    },
-  ];
+  late WalletManager _walletManager;
+  List<Map<String, dynamic>> ewallets = [];
 
   @override
   void initState() {
     super.initState();
+    _walletManager = WalletManager();
+    _walletManager.addListener(_updateWallets);
+    _updateWallets();
     _parseQRCode();
+  }
+
+  @override
+  void dispose() {
+    _walletManager.removeListener(_updateWallets);
+    super.dispose();
+  }
+
+  void _updateWallets() {
+    setState(() {
+      ewallets = _walletManager.getCustomerWallets().map((wallet) {
+        return {
+          'id': wallet['id'],
+          'name': wallet['name'],
+          'balance': wallet['balance'],
+          'color': Color(wallet['color']),
+          'icon': _getIconData(wallet['icon']),
+        };
+      }).toList();
+    });
+  }
+
+  IconData _getIconData(String iconName) {
+    switch (iconName) {
+      case 'account_balance_wallet':
+        return Icons.account_balance_wallet;
+      case 'account_balance':
+        return Icons.account_balance;
+      case 'shopping_bag':
+        return Icons.shopping_bag;
+      default:
+        return Icons.account_balance_wallet;
+    }
   }
 
   void _parseQRCode() {
@@ -65,18 +72,18 @@ class _PaymentScreenState extends State<PaymentScreen> {
         paymentData = data;
       });
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Invalid QR Code format')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Invalid QR Code format')));
       Navigator.pop(context);
     }
   }
 
   void _processPayment() async {
     if (selectedWallet == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Please select a payment method')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Please select a payment method')));
       return;
     }
 
@@ -92,14 +99,29 @@ class _PaymentScreenState extends State<PaymentScreen> {
       isProcessing = true;
     });
 
-    // Simulate payment processing
+    // Simulate payment processing delay
     await Future.delayed(Duration(seconds: 2));
 
-    // Add transaction to global state
+    // Process the actual payment (deduct from customer, add to merchant)
+    final success = _walletManager.processPayment(
+      walletId: selectedWallet!,
+      merchantId: paymentData!['merchant_id'],
+      amount: amount,
+    );
+
+    if (!success) {
+      setState(() {
+        isProcessing = false;
+      });
+      _showErrorDialog('Payment failed. Please try again.');
+      return;
+    }
+
+    // Add transaction to history
     TransactionManager().addTransaction(
       merchantId: paymentData!['merchant_id'],
       merchantName: paymentData!['merchant_name'],
-      customer: 'Customer',
+      customer: 'Customer', // You can add user name here
       amount: amount,
       paymentMethod: wallet['name'],
       transactionId: paymentData!['transaction_id'],
@@ -109,6 +131,12 @@ class _PaymentScreenState extends State<PaymentScreen> {
     setState(() {
       isProcessing = false;
     });
+
+    // Get updated balances for success screen
+    final newCustomerBalance = _walletManager.getWalletBalance(selectedWallet!);
+    final merchantBalance = _walletManager.getMerchantBalance(
+      paymentData!['merchant_id'],
+    );
 
     // Navigate to success screen
     Navigator.pushReplacement(
@@ -120,6 +148,9 @@ class _PaymentScreenState extends State<PaymentScreen> {
           walletName: wallet['name'],
           transactionId: paymentData!['transaction_id'],
           note: paymentData!['note'] ?? '',
+          previousBalance: wallet['balance'],
+          newBalance: newCustomerBalance,
+          merchantBalance: merchantBalance,
         ),
       ),
     );
@@ -149,6 +180,28 @@ class _PaymentScreenState extends State<PaymentScreen> {
     );
   }
 
+  void _showErrorDialog(String message) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(Icons.error_outline, color: Colors.red),
+            SizedBox(width: 8),
+            Text('Error'),
+          ],
+        ),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('OK'),
+          ),
+        ],
+      ),
+    );
+  }
+
   String _formatCurrency(double amount) {
     return 'Rp ${amount.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]}.')}';
   }
@@ -160,7 +213,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
     }
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FA), // Background abu-abu muda bersih
+      backgroundColor: Colors.grey[100],
       appBar: AppBar(
         title: Text(
           'Payment Confirmation',
@@ -168,290 +221,337 @@ class _PaymentScreenState extends State<PaymentScreen> {
         ),
         backgroundColor: AppColors.primary,
         elevation: 0,
-        centerTitle: true,
         iconTheme: IconThemeData(color: Colors.white),
       ),
-      body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(20.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // 1. Merchant Info Card
-              _buildMerchantCard(),
+      body: Column(
+        children: [
+          Expanded(
+            child: SingleChildScrollView(
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    // Merchant Info Card
+                    Container(
+                      padding: EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.05),
+                            blurRadius: 10,
+                            offset: Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        children: [
+                          Icon(Icons.store, size: 50, color: AppColors.primary),
+                          SizedBox(height: 12),
+                          Text(
+                            paymentData!['merchant_name'],
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black87,
+                            ),
+                          ),
+                          SizedBox(height: 8),
+                          Text(
+                            'Merchant ID: ${paymentData!['merchant_id']}',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey[600],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
 
-              SizedBox(height: 20),
+                    SizedBox(height: 20),
 
-              // 2. Payment Amount Card
-              _buildAmountCard(),
+                    // Payment Amount Card
+                    Container(
+                      padding: EdgeInsets.all(24),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.05),
+                            blurRadius: 10,
+                            offset: Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        children: [
+                          Text(
+                            'Payment Amount',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.grey[600],
+                            ),
+                          ),
+                          SizedBox(height: 12),
+                          Text(
+                            _formatCurrency(paymentData!['amount']),
+                            style: TextStyle(
+                              fontSize: 36,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.primary,
+                            ),
+                          ),
+                          if (paymentData!['note'] != null &&
+                              paymentData!['note'].isNotEmpty) ...[
+                            SizedBox(height: 16),
+                            Container(
+                              padding: EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: Colors.grey[100],
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    Icons.note_outlined,
+                                    size: 16,
+                                    color: Colors.grey[600],
+                                  ),
+                                  SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      paymentData!['note'],
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        color: Colors.black87,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
 
-              SizedBox(height: 24),
+                    SizedBox(height: 24),
 
-              Text(
-                'Select Payment Method',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black87,
+                    // Payment Method Section
+                    Text(
+                      'Select Payment Method',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
+                      ),
+                    ),
+                    SizedBox(height: 12),
+
+                    // E-Wallet List
+                    ...ewallets.map((wallet) {
+                      final isSelected = selectedWallet == wallet['id'];
+                      final hasEnoughBalance =
+                          wallet['balance'] >= paymentData!['amount'];
+
+                      return GestureDetector(
+                        onTap: hasEnoughBalance
+                            ? () {
+                                setState(() {
+                                  selectedWallet = wallet['id'];
+                                });
+                              }
+                            : null,
+                        child: Container(
+                          margin: EdgeInsets.only(bottom: 12),
+                          padding: EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: isSelected
+                                  ? AppColors.primary
+                                  : Colors.grey[300]!,
+                              width: isSelected ? 2 : 1,
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.05),
+                                blurRadius: 8,
+                                offset: Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: Row(
+                            children: [
+                              // Radio button
+                              Container(
+                                width: 24,
+                                height: 24,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: isSelected
+                                        ? AppColors.primary
+                                        : Colors.grey[400]!,
+                                    width: 2,
+                                  ),
+                                ),
+                                child: isSelected
+                                    ? Center(
+                                        child: Container(
+                                          width: 12,
+                                          height: 12,
+                                          decoration: BoxDecoration(
+                                            shape: BoxShape.circle,
+                                            color: AppColors.primary,
+                                          ),
+                                        ),
+                                      )
+                                    : null,
+                              ),
+                              SizedBox(width: 12),
+                              // Wallet Icon
+                              Container(
+                                width: 45,
+                                height: 45,
+                                decoration: BoxDecoration(
+                                  color: wallet['color'].withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: Icon(
+                                  wallet['icon'],
+                                  color: wallet['color'],
+                                  size: 24,
+                                ),
+                              ),
+                              SizedBox(width: 12),
+                              // Wallet Info
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      wallet['name'],
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                        color: hasEnoughBalance
+                                            ? Colors.black87
+                                            : Colors.grey[400],
+                                      ),
+                                    ),
+                                    SizedBox(height: 4),
+                                    Text(
+                                      _formatCurrency(wallet['balance']),
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        color: hasEnoughBalance
+                                            ? Colors.grey[600]
+                                            : Colors.red,
+                                        fontWeight: hasEnoughBalance
+                                            ? FontWeight.normal
+                                            : FontWeight.w600,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              if (!hasEnoughBalance)
+                                Icon(
+                                  Icons.warning_amber_rounded,
+                                  color: Colors.red,
+                                  size: 20,
+                                ),
+                            ],
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ],
                 ),
               ),
-              SizedBox(height: 12),
-
-              // 3. E-Wallet List
-              ...ewallets.map((wallet) => _buildWalletItem(wallet)).toList(),
-              
-              // Tambahan space di bawah supaya tidak ketutup tombol
-              SizedBox(height: 20),
-            ],
+            ),
           ),
-        ),
-      ),
-      // 4. Tombol Pay di Bottom Navigation Bar (Sticky Button)
-      bottomNavigationBar: _buildStickyPayButton(),
-    );
-  }
 
-  // --- WIDGET BUILDERS (Supaya Kode Rapi) ---
-
-  Widget _buildMerchantCard() {
-    return Container(
-      padding: EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 15,
-            offset: Offset(0, 5),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
+          // Bottom Payment Button
           Container(
-            padding: EdgeInsets.all(12),
+            padding: EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: AppColors.primary.withOpacity(0.1),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(Icons.store_rounded, size: 40, color: AppColors.primary),
-          ),
-          SizedBox(height: 12),
-          Text(
-            paymentData!['merchant_name'],
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: Colors.black87,
-            ),
-          ),
-          SizedBox(height: 4),
-          Text(
-            'ID: ${paymentData!['merchant_id']}',
-            style: TextStyle(fontSize: 12, color: Colors.grey[500]),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildAmountCard() {
-    return Container(
-      padding: EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 15,
-            offset: Offset(0, 5),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          Text(
-            'Total Payment',
-            style: TextStyle(fontSize: 14, color: Colors.grey[600]),
-          ),
-          SizedBox(height: 8),
-          Text(
-            _formatCurrency(paymentData!['amount']),
-            style: TextStyle(
-              fontSize: 32,
-              fontWeight: FontWeight.w800,
-              color: AppColors.primary,
-            ),
-          ),
-          if (paymentData!['note'] != null && paymentData!['note'].isNotEmpty) ...[
-            SizedBox(height: 16),
-            Container(
-              padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              decoration: BoxDecoration(
-                color: Colors.grey[100],
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.notes, size: 16, color: Colors.grey[600]),
-                  SizedBox(width: 8),
-                  Text(
-                    paymentData!['note'],
-                    style: TextStyle(fontSize: 14, color: Colors.black87),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _buildWalletItem(Map<String, dynamic> wallet) {
-    final isSelected = selectedWallet == wallet['id'];
-    final hasEnoughBalance = wallet['balance'] >= paymentData!['amount'];
-    final double opacity = hasEnoughBalance ? 1.0 : 0.5;
-
-    return GestureDetector(
-      onTap: hasEnoughBalance
-          ? () {
-              setState(() {
-                selectedWallet = wallet['id'];
-              });
-            }
-          : null,
-      child: AnimatedContainer(
-        duration: Duration(milliseconds: 200),
-        margin: EdgeInsets.only(bottom: 12),
-        padding: EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: isSelected ? AppColors.primary.withOpacity(0.05) : Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: isSelected
-                ? AppColors.primary
-                : (hasEnoughBalance ? Colors.transparent : Colors.red.withOpacity(0.2)),
-            width: 2,
-          ),
-          boxShadow: [
-            if (!isSelected)
-              BoxShadow(
-                color: Colors.grey.withOpacity(0.1),
-                blurRadius: 5,
-                offset: Offset(0, 2),
-              ),
-          ],
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 50,
-              height: 50,
-              decoration: BoxDecoration(
-                color: wallet['color'].withOpacity(0.1),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(wallet['icon'], color: wallet['color'].withOpacity(opacity), size: 28),
-            ),
-            SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    wallet['name'],
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black87.withOpacity(opacity),
-                    ),
-                  ),
-                  SizedBox(height: 4),
-                  Text(
-                    _formatCurrency(wallet['balance']),
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: hasEnoughBalance ? Colors.grey[600] : Colors.red,
-                      fontWeight: hasEnoughBalance ? FontWeight.normal : FontWeight.bold,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            if (isSelected)
-              Icon(Icons.check_circle, color: AppColors.primary, size: 24)
-            else if (!hasEnoughBalance)
-              Text("Top Up", style: TextStyle(color: Colors.red, fontSize: 12, fontWeight: FontWeight.bold))
-            else
-              Container(
-                width: 24,
-                height: 24,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(color: Colors.grey[300]!, width: 2),
+              color: Colors.white,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 10,
+                  offset: Offset(0, -4),
                 ),
+              ],
+            ),
+            child: SafeArea(
+              child: ElevatedButton(
+                onPressed: isProcessing ? null : _processPayment,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  padding: EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  elevation: 0,
+                ),
+                child: isProcessing
+                    ? Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                Colors.white,
+                              ),
+                            ),
+                          ),
+                          SizedBox(width: 12),
+                          Text(
+                            'Processing Payment...',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      )
+                    : Text(
+                        'Pay ${_formatCurrency(paymentData!['amount'])}',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
               ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildStickyPayButton() {
-    return Container(
-      padding: EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: Offset(0, -5),
+            ),
           ),
         ],
-      ),
-      child: SafeArea(
-        child: ElevatedButton(
-          onPressed: isProcessing ? null : _processPayment,
-          style: ElevatedButton.styleFrom(
-            backgroundColor: AppColors.primary,
-            padding: EdgeInsets.symmetric(vertical: 16),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-            elevation: 0,
-          ),
-          child: isProcessing
-              ? SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                )
-              : Text(
-                  'Pay ${_formatCurrency(paymentData!['amount'])}',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                ),
-        ),
       ),
     );
   }
 }
 
-// --- CLASS PAYMENT SUCCESS SCREEN (Tidak diubah, hanya dirapikan formatnya) ---
 class PaymentSuccessScreen extends StatelessWidget {
   final String merchantName;
   final double amount;
   final String walletName;
   final String transactionId;
   final String note;
+  final double previousBalance;
+  final double newBalance;
+  final double merchantBalance;
 
   PaymentSuccessScreen({
     required this.merchantName,
@@ -459,6 +559,9 @@ class PaymentSuccessScreen extends StatelessWidget {
     required this.walletName,
     required this.transactionId,
     required this.note,
+    required this.previousBalance,
+    required this.newBalance,
+    required this.merchantBalance,
   });
 
   String _formatCurrency(double amount) {
@@ -475,20 +578,35 @@ class PaymentSuccessScreen extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Container(
-                width: 100,
-                height: 100,
-                decoration: BoxDecoration(
-                  color: Colors.green.withOpacity(0.1),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(Icons.check_circle, size: 60, color: Colors.green),
+              // Success Icon with Animation
+              TweenAnimationBuilder(
+                tween: Tween<double>(begin: 0, end: 1),
+                duration: Duration(milliseconds: 600),
+                builder: (context, double value, child) {
+                  return Transform.scale(
+                    scale: value,
+                    child: Container(
+                      width: 120,
+                      height: 120,
+                      decoration: BoxDecoration(
+                        color: Colors.green.withOpacity(0.1),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        Icons.check_circle,
+                        size: 80,
+                        color: Colors.green,
+                      ),
+                    ),
+                  );
+                },
               ),
-              SizedBox(height: 24),
+              SizedBox(height: 32),
+
               Text(
                 'Payment Successful!',
                 style: TextStyle(
-                  fontSize: 24,
+                  fontSize: 28,
                   fontWeight: FontWeight.bold,
                   color: Colors.black87,
                 ),
@@ -498,21 +616,21 @@ class PaymentSuccessScreen extends StatelessWidget {
                 'Your payment has been processed',
                 style: TextStyle(fontSize: 16, color: Colors.grey[600]),
               ),
-              SizedBox(height: 32),
-              
-              // Receipt Card
+
+              SizedBox(height: 40),
+
+              // Transaction Details
               Container(
                 padding: EdgeInsets.all(20),
                 decoration: BoxDecoration(
-                  color: Colors.grey[50],
+                  color: Colors.grey[100],
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: Colors.grey[200]!),
                 ),
                 child: Column(
                   children: [
                     _buildDetailRow('Merchant', merchantName),
                     Divider(height: 24),
-                    _buildDetailRow('Amount', _formatCurrency(amount), isBold: true),
+                    _buildDetailRow('Amount', _formatCurrency(amount)),
                     Divider(height: 24),
                     _buildDetailRow('Payment Method', walletName),
                     Divider(height: 24),
@@ -524,28 +642,138 @@ class PaymentSuccessScreen extends StatelessWidget {
                     Divider(height: 24),
                     _buildDetailRow(
                       'Time',
-                      DateTime.now().toString().substring(0, 16),
+                      DateTime.now().toString().substring(0, 19),
                     ),
                   ],
                 ),
               ),
-              Spacer(),
-              ElevatedButton(
-                onPressed: () {
-                  Navigator.popUntil(context, (route) => route.isFirst);
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  padding: EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+
+              SizedBox(height: 20),
+
+              // Balance Changes
+              Container(
+                padding: EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [Colors.blue.shade50, Colors.blue.shade100],
                   ),
-                  minimumSize: Size(double.infinity, 50),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: Colors.blue.shade200),
                 ),
-                child: Text(
-                  'Back to Home',
-                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                child: Column(
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.info_outline, color: Colors.blue.shade700),
+                        SizedBox(width: 8),
+                        Text(
+                          'Balance Update',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.blue.shade900,
+                          ),
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: 16),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Previous Balance',
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: Colors.grey[700],
+                          ),
+                        ),
+                        Text(
+                          _formatCurrency(previousBalance),
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.black87,
+                          ),
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: 8),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Current Balance',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black87,
+                          ),
+                        ),
+                        Text(
+                          _formatCurrency(newBalance),
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.green,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
+              ),
+
+              Spacer(),
+
+              // Action Buttons
+              Column(
+                children: [
+                  ElevatedButton(
+                    onPressed: () {
+                      Navigator.popUntil(context, (route) => route.isFirst);
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      padding: EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      minimumSize: Size(double.infinity, 50),
+                    ),
+                    child: Text(
+                      'Back to Home',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  SizedBox(height: 12),
+                  OutlinedButton(
+                    onPressed: () {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Share Receipt - Coming Soon')),
+                      );
+                    },
+                    style: OutlinedButton.styleFrom(
+                      padding: EdgeInsets.symmetric(vertical: 16),
+                      side: BorderSide(color: AppColors.primary),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      minimumSize: Size(double.infinity, 50),
+                    ),
+                    child: Text(
+                      'Share Receipt',
+                      style: TextStyle(
+                        color: AppColors.primary,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
@@ -554,7 +782,7 @@ class PaymentSuccessScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildDetailRow(String label, String value, {bool isBold = false}) {
+  Widget _buildDetailRow(String label, String value) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
@@ -565,8 +793,8 @@ class PaymentSuccessScreen extends StatelessWidget {
             textAlign: TextAlign.right,
             style: TextStyle(
               fontSize: 14,
-              fontWeight: isBold ? FontWeight.bold : FontWeight.w600,
-              color: isBold ? AppColors.primary : Colors.black87,
+              fontWeight: FontWeight.w600,
+              color: Colors.black87,
             ),
           ),
         ),
