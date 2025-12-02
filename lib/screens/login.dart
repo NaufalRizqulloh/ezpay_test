@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:ezpay_test/constants/app_colors.dart';
+import 'package:ezpay_test/models/user.dart';
 
 import 'package:ezpay_test/screens/register.dart';
 import 'package:ezpay_test/screens/customer/customer_home_screen.dart';
@@ -39,7 +40,19 @@ class _LoginPageState extends State<LoginPage> {
         return;
       }
 
-      // here you would send OTP to +62 + raw
+      // Check if user exists
+      final user = User.getUserByPhoneNumber('+62$raw');
+      if (user == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              "Phone number didn't exists! Please try again.\n+62$raw",
+            ),
+          ),
+        );
+        return;
+      }
+
       // _showCredentials('+62$raw'); // testing only
 
       setState(() {
@@ -56,16 +69,28 @@ class _LoginPageState extends State<LoginPage> {
         return;
       }
 
-      // Fake verification for demo: allow 'merchant' to go to merchant screen
-      if (_phoneController.text.trim() == '676767') {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => MerchantHomeScreen()),
-        );
+      // Check if OTP is valid
+      final phone = '+62${_phoneController.text.trim()}';
+      final user = User.getUserByPhoneNumber(phone);
+      if (User.verifyOtp(phone, otp)) {
+        // Fake verification for demo: allow 'merchant' to go to merchant screen
+        if (User.getUserByPhoneNumber(
+              '+62${_phoneController.text.trim()}',
+            )!.role ==
+            1) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => MerchantHomeScreen(user: user)),
+          );
+        } else {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => CustomerHomeScreen(user: user)),
+          );
+        }
       } else {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => CustomerHomeScreen()),
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Invalid OTP! Please try again.')),
         );
       }
     }

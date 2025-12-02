@@ -2,12 +2,16 @@
 
 import 'package:flutter/material.dart';
 import 'package:ezpay_test/constants/app_colors.dart';
+import 'package:ezpay_test/models/user.dart';
 import 'package:ezpay_test/screens/merchant/generate_qr_screen.dart';
 import 'package:ezpay_test/screens/merchant/transaction_history_screen.dart';
 import 'package:ezpay_test/services/transaction_manager.dart';
 import 'package:ezpay_test/services/wallet_manager.dart';
 
 class MerchantHomeScreen extends StatefulWidget {
+  final User? user;
+  MerchantHomeScreen({Key? key, this.user}) : super(key: key);
+
   @override
   _MerchantHomeScreenState createState() => _MerchantHomeScreenState();
 }
@@ -116,6 +120,7 @@ class _MerchantHomeScreenState extends State<MerchantHomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final username = widget.user?.name ?? 'Merchant';
     return Scaffold(
       backgroundColor: Colors.grey[100],
       appBar: AppBar(
@@ -124,7 +129,7 @@ class _MerchantHomeScreenState extends State<MerchantHomeScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'EZPAY Merchant',
+              'EZPAY Merchant - $username',
               style: TextStyle(
                 color: Colors.white,
                 fontSize: 16,

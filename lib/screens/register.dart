@@ -51,7 +51,21 @@ class _RegisterPageState extends State<RegisterPage> {
         return;
       }
 
-      _showCredentials(name, '+62$phone', email, password); // testing only
+      // _showCredentials(name, '+62$phone', email, password); // testing only
+
+      // Check if phone number already exists
+      final existingUser = User.getUserByPhoneNumber('+62$phone');
+      if (existingUser != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Phone number already registered! Please use another phone number.',
+            ),
+          ),
+        );
+        return;
+      }
+
       setState(() {
         _isSMSMode = true;
       });
@@ -87,6 +101,14 @@ class _RegisterPageState extends State<RegisterPage> {
       }
 
       // STORE INFO DATA HERE (BACK END)
+      User.createUser(
+        _nameController.text.trim(),
+        '+62${_phoneController.text.trim()}',
+        _emailController.text.trim(),
+        _passwordController.text.trim(),
+        otpCode,
+        0, // default role: customer
+      );
 
       // Succesfull snackbar
       ScaffoldMessenger.of(context).showSnackBar(

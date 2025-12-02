@@ -1,12 +1,19 @@
 // package:ezpay_test/screens/customer/customer_home_screen.dart
 
 import 'package:flutter/material.dart';
+
 import 'package:ezpay_test/components/box_decoration.dart';
 import 'package:ezpay_test/constants/app_colors.dart';
+import 'package:ezpay_test/models/user.dart';
+
 import 'package:ezpay_test/screens/customer/customer_qris_screen.dart';
+
 import 'package:ezpay_test/services/wallet_manager.dart';
 
 class CustomerHomeScreen extends StatefulWidget {
+  final User? user; // <-- added
+  CustomerHomeScreen({Key? key, this.user}) : super(key: key); // <-- added
+
   @override
   _CustomerHomeScreenState createState() => _CustomerHomeScreenState();
 }
@@ -120,12 +127,13 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final username = widget.user?.name ?? 'Customer';
     return Scaffold(
       backgroundColor: Colors.grey[100],
       appBar: AppBar(
         elevation: 0,
         title: Text(
-          'EZPAY',
+          'EZPAY - $username',
           style: TextStyle(
             color: Colors.white,
             fontWeight: FontWeight.bold,

@@ -1,12 +1,19 @@
 // package:ezpay_test/main.dart
 
 import 'package:flutter/material.dart';
+
 import 'package:ezpay_test/constants/app_colors.dart';
+import 'package:ezpay_test/factory/userFactory.dart';
+
 import 'package:ezpay_test/screens/login.dart';
 import 'package:ezpay_test/screens/customer/customer_home_screen.dart';
 import 'package:ezpay_test/screens/merchant/merchant_home_screen.dart';
 
 void main() {
+  // Initialize mock users
+  WidgetsFlutterBinding.ensureInitialized();
+  UserFactory.initializeMockUsers();
+
   runApp(MyApp());
 }
 
