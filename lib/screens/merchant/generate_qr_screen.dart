@@ -78,10 +78,10 @@ class _GenerateQRScreenState extends State<GenerateQRScreen> {
     super.dispose();
   }
 
-  @override
+@override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[100],
+      backgroundColor: const Color(0xFFF8F9FA), // Background lebih bersih
       appBar: AppBar(
         title: Text(
           'Generate Payment QR',
@@ -93,152 +93,17 @@ class _GenerateQRScreenState extends State<GenerateQRScreen> {
       ),
       body: SingleChildScrollView(
         child: Padding(
-          padding: const EdgeInsets.all(16.0),
+          padding: const EdgeInsets.all(20.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               if (!isQRGenerated) ...[
-                // Input Form
-                Container(
-                  padding: EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(16),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
-                        blurRadius: 10,
-                        offset: Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Payment Details',
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.black87,
-                        ),
-                      ),
-                      SizedBox(height: 24),
-
-                      // Amount Input
-                      Text(
-                        'Amount *',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.black87,
-                        ),
-                      ),
-                      SizedBox(height: 8),
-                      TextField(
-                        controller: _amountController,
-                        keyboardType: TextInputType.number,
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                        decoration: InputDecoration(
-                          prefixText: 'Rp ',
-                          prefixStyle: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.black87,
-                          ),
-                          hintText: '0',
-                          filled: true,
-                          fillColor: Colors.grey[100],
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: BorderSide.none,
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: BorderSide(
-                              color: AppColors.primary,
-                              width: 2,
-                            ),
-                          ),
-                        ),
-                        onChanged: (value) {
-                          final formatted = _formatCurrency(value);
-                          if (formatted != value) {
-                            _amountController.value = TextEditingValue(
-                              text: formatted,
-                              selection: TextSelection.collapsed(
-                                offset: formatted.length,
-                              ),
-                            );
-                          }
-                        },
-                      ),
-
-                      SizedBox(height: 20),
-
-                      // Note Input
-                      Text(
-                        'Note (Optional)',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.black87,
-                        ),
-                      ),
-                      SizedBox(height: 8),
-                      TextField(
-                        controller: _noteController,
-                        maxLines: 3,
-                        decoration: InputDecoration(
-                          hintText: 'e.g., Nasi Goreng + Es Teh',
-                          filled: true,
-                          fillColor: Colors.grey[100],
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: BorderSide.none,
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: BorderSide(
-                              color: AppColors.primary,
-                              width: 2,
-                            ),
-                          ),
-                        ),
-                      ),
-
-                      SizedBox(height: 24),
-
-                      // Generate Button
-                      ElevatedButton(
-                        onPressed: _generateQR,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.primary,
-                          padding: EdgeInsets.symmetric(vertical: 16),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          elevation: 0,
-                        ),
-                        child: Text(
-                          'Generate QR Code',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
+                // 1. Form Input
+                _buildInputForm(),
+                
                 SizedBox(height: 24),
-
-                // Quick Amount Buttons
+                
+                // 2. Quick Amount Buttons
                 Text(
                   'Quick Amount',
                   style: TextStyle(
@@ -248,185 +113,25 @@ class _GenerateQRScreenState extends State<GenerateQRScreen> {
                   ),
                 ),
                 SizedBox(height: 12),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
+                GridView.count(
+                  shrinkWrap: true, 
+                  physics: NeverScrollableScrollPhysics(),
+                  crossAxisCount: 3, 
+                  crossAxisSpacing: 10, 
+                  mainAxisSpacing: 10,  
+                  childAspectRatio: 2.2, 
                   children: [
                     _buildQuickAmountButton(10000),
+                    _buildQuickAmountButton(20000), 
                     _buildQuickAmountButton(25000),
                     _buildQuickAmountButton(50000),
                     _buildQuickAmountButton(100000),
-                    _buildQuickAmountButton(250000),
-                    _buildQuickAmountButton(500000),
+                    _buildQuickAmountButton(150000),
                   ],
                 ),
               ] else ...[
-                // QR Code Display
-                Container(
-                  padding: EdgeInsets.all(24),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(20),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.1),
-                        blurRadius: 20,
-                        offset: Offset(0, 8),
-                      ),
-                    ],
-                  ),
-                  child: Column(
-                    children: [
-                      Icon(Icons.store, size: 50, color: AppColors.primary),
-                      SizedBox(height: 8),
-                      Text(
-                        merchantName,
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.black87,
-                        ),
-                      ),
-                      SizedBox(height: 24),
-
-                      // QR Code
-                      Container(
-                        padding: EdgeInsets.all(20),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(
-                            color: Colors.grey[300]!,
-                            width: 2,
-                          ),
-                        ),
-                        child: QrImageView(
-                          data: qrData,
-                          version: QrVersions.auto,
-                          size: 250.0,
-                          backgroundColor: Colors.white,
-                        ),
-                      ),
-
-                      SizedBox(height: 24),
-
-                      // Payment Amount
-                      Container(
-                        padding: EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: AppColors.primary.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Column(
-                          children: [
-                            Text(
-                              'Payment Amount',
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: Colors.black54,
-                              ),
-                            ),
-                            SizedBox(height: 8),
-                            Text(
-                              'Rp ${_amountController.text}',
-                              style: TextStyle(
-                                fontSize: 32,
-                                fontWeight: FontWeight.bold,
-                                color: AppColors.primary,
-                              ),
-                            ),
-                            if (_noteController.text.isNotEmpty) ...[
-                              SizedBox(height: 12),
-                              Text(
-                                _noteController.text,
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: Colors.black87,
-                                ),
-                              ),
-                            ],
-                          ],
-                        ),
-                      ),
-
-                      SizedBox(height: 24),
-
-                      // Instructions
-                      Container(
-                        padding: EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: Colors.blue.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(Icons.info_outline, color: Colors.blue),
-                            SizedBox(width: 12),
-                            Expanded(
-                              child: Text(
-                                'Ask customer to scan this QR code to complete payment',
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  color: Colors.blue[900],
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-
-                      SizedBox(height: 24),
-
-                      // Action Buttons
-                      Row(
-                        children: [
-                          Expanded(
-                            child: OutlinedButton(
-                              onPressed: _resetForm,
-                              style: OutlinedButton.styleFrom(
-                                padding: EdgeInsets.symmetric(vertical: 16),
-                                side: BorderSide(color: AppColors.primary),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                              ),
-                              child: Text(
-                                'New Payment',
-                                style: TextStyle(
-                                  color: AppColors.primary,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                          ),
-                          SizedBox(width: 12),
-                          Expanded(
-                            child: ElevatedButton(
-                              onPressed: () {
-                                Navigator.pop(context);
-                              },
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: AppColors.primary,
-                                padding: EdgeInsets.symmetric(vertical: 16),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                              ),
-                              child: Text(
-                                'Done',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
+                // 3. QR Display Result
+                _buildQRDisplay(),
               ],
             ],
           ),
@@ -435,24 +140,267 @@ class _GenerateQRScreenState extends State<GenerateQRScreen> {
     );
   }
 
-  Widget _buildQuickAmountButton(int amount) {
-    return InkWell(
-      onTap: () {
-        final formatted = _formatCurrency(amount.toString());
-        _amountController.text = formatted;
-      },
-      child: Container(
-        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: AppColors.primary.withOpacity(0.3)),
+  // --- WIDGET BUILDERS (MODULAR) ---
+
+  Widget _buildInputForm() {
+    return Container(
+      padding: EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Payment Details',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: Colors.black87,
+            ),
+          ),
+          SizedBox(height: 24),
+
+          // Amount Input
+          Text(
+            'Amount *',
+            style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.grey[700]),
+          ),
+          SizedBox(height: 8),
+          TextField(
+            controller: _amountController,
+            keyboardType: TextInputType.number,
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            decoration: InputDecoration(
+              prefixText: 'Rp ',
+              prefixStyle: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87),
+              hintText: '0',
+              filled: true,
+              fillColor: Colors.grey[50],
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide.none,
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: AppColors.primary, width: 2),
+              ),
+            ),
+            onChanged: (value) {
+              final formatted = _formatCurrency(value);
+              if (formatted != value) {
+                _amountController.value = TextEditingValue(
+                  text: formatted,
+                  selection: TextSelection.collapsed(offset: formatted.length),
+                );
+              }
+            },
+          ),
+
+          SizedBox(height: 20),
+
+          // Note Input
+          Text(
+            'Note (Optional)',
+            style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.grey[700]),
+          ),
+          SizedBox(height: 8),
+          TextField(
+            controller: _noteController,
+            maxLines: 2,
+            decoration: InputDecoration(
+              hintText: 'e.g., Nasi Goreng + Es Teh',
+              filled: true,
+              fillColor: Colors.grey[50],
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide.none,
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: AppColors.primary, width: 2),
+              ),
+            ),
+          ),
+
+          SizedBox(height: 24),
+
+          // Generate Button
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: _generateQR,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                padding: EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                elevation: 0,
+              ),
+              child: Text(
+                'Generate QR Code',
+                style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildQRDisplay() {
+    return Column(
+      children: [
+        Container(
+          padding: EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 20, offset: Offset(0, 8)),
+            ],
+          ),
+          child: Column(
+            children: [
+              Icon(Icons.store_rounded, size: 50, color: AppColors.primary),
+              SizedBox(height: 8),
+              Text(
+                merchantName,
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black87),
+              ),
+              SizedBox(height: 24),
+
+              // QR Code
+              Container(
+                padding: EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: Colors.grey[200]!, width: 2),
+                ),
+                child: QrImageView(
+                  data: qrData,
+                  version: QrVersions.auto,
+                  size: 220.0,
+                  backgroundColor: Colors.white,
+                ),
+              ),
+
+              SizedBox(height: 24),
+
+              // Payment Amount
+              Container(
+                padding: EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withOpacity(0.08),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Column(
+                  children: [
+                    Text('Payment Amount', style: TextStyle(fontSize: 14, color: Colors.grey[600])),
+                    SizedBox(height: 4),
+                    Text(
+                      'Rp ${_amountController.text}',
+                      style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: AppColors.primary),
+                    ),
+                    if (_noteController.text.isNotEmpty) ...[
+                      SizedBox(height: 8),
+                      Text(
+                        _noteController.text,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(fontSize: 14, color: Colors.black87),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+
+              SizedBox(height: 24),
+
+              // Instructions
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.info_outline_rounded, color: Colors.grey[600], size: 18),
+                  SizedBox(width: 8),
+                  Text(
+                    'Scan this code to pay',
+                    style: TextStyle(color: Colors.grey[600], fontSize: 14),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
-        child: Text(
-          'Rp ${_formatCurrency(amount.toString())}',
-          style: TextStyle(
-            color: AppColors.primary,
-            fontWeight: FontWeight.w600,
+
+        SizedBox(height: 24),
+
+        // Action Buttons
+        Row(
+          children: [
+            Expanded(
+              child: OutlinedButton(
+                onPressed: _resetForm,
+                style: OutlinedButton.styleFrom(
+                  padding: EdgeInsets.symmetric(vertical: 16),
+                  side: BorderSide(color: AppColors.primary),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                child: Text('New Payment', style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold)),
+              ),
+            ),
+            SizedBox(width: 12),
+            Expanded(
+              child: ElevatedButton(
+                onPressed: () => Navigator.pop(context),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  padding: EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                child: Text('Done', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildQuickAmountButton(int amount) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () {
+          final formatted = _formatCurrency(amount.toString());
+          _amountController.text = formatted;
+          // Pindahin kursor ke belakang
+          _amountController.selection = TextSelection.fromPosition(
+              TextPosition(offset: _amountController.text.length));
+        },
+        borderRadius: BorderRadius.circular(8),
+        child: Container(
+          // Hapus padding horizontal, ganti Alignment.center
+          alignment: Alignment.center, 
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: AppColors.primary.withOpacity(0.3)),
+          ),
+          child: Text(
+            'Rp ${_formatCurrency(amount.toString())}',
+            style: TextStyle(
+              color: AppColors.primary,
+              fontWeight: FontWeight.bold,
+              fontSize: 14, // Ukuran font pas
+            ),
           ),
         ),
       ),
