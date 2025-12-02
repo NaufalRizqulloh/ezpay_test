@@ -57,7 +57,7 @@ class _LoginPageState extends State<LoginPage> {
       }
 
       // Fake verification for demo: allow 'merchant' to go to merchant screen
-      if (_phoneController.text.trim() == 'merchant') {
+      if (_phoneController.text.trim() == '676767') {
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (_) => MerchantHomeScreen()),
