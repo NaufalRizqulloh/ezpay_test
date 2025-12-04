@@ -330,6 +330,7 @@ class _MerchantHomeScreenState extends State<MerchantHomeScreen> {
             ),
 
             // Action Buttons
+            SizedBox(height: 16),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16.0),
               child: Row(
