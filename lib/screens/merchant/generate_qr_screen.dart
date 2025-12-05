@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:ezpay_test/constants/app_colors.dart';
 import 'package:qr_flutter/qr_flutter.dart';
+import 'package:ezpay_test/models/transaction.dart';
 import 'dart:convert';
 
 class GenerateQRScreen extends StatefulWidget {
@@ -35,6 +36,7 @@ class _GenerateQRScreenState extends State<GenerateQRScreen> {
       ).showSnackBar(SnackBar(content: Text('Please enter valid amount')));
       return;
     }
+    final String transactionId = 'TRX${DateTime.now().millisecondsSinceEpoch}';
 
     // Create QR data in JSON format
     final qrPayload = {
@@ -43,13 +45,23 @@ class _GenerateQRScreenState extends State<GenerateQRScreen> {
       'amount': amount,
       'note': _noteController.text,
       'timestamp': DateTime.now().millisecondsSinceEpoch,
-      'transaction_id': 'TRX${DateTime.now().millisecondsSinceEpoch}',
+      'transaction_id': transactionId,
     };
 
     setState(() {
       qrData = jsonEncode(qrPayload);
       isQRGenerated = true;
     });
+
+    // Optionally, save the transaction (mock)
+    Transaction.createTransaction(
+      merchantId,
+      merchantName,
+      amount,
+      _noteController.text,
+      transactionId,
+      qrData,
+    );
   }
 
   void _resetForm() {
@@ -78,7 +90,7 @@ class _GenerateQRScreenState extends State<GenerateQRScreen> {
     super.dispose();
   }
 
-@override
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA), // Background lebih bersih
@@ -100,9 +112,9 @@ class _GenerateQRScreenState extends State<GenerateQRScreen> {
               if (!isQRGenerated) ...[
                 // 1. Form Input
                 _buildInputForm(),
-                
+
                 SizedBox(height: 24),
-                
+
                 // 2. Quick Amount Buttons
                 Text(
                   'Quick Amount',
@@ -114,15 +126,15 @@ class _GenerateQRScreenState extends State<GenerateQRScreen> {
                 ),
                 SizedBox(height: 12),
                 GridView.count(
-                  shrinkWrap: true, 
+                  shrinkWrap: true,
                   physics: NeverScrollableScrollPhysics(),
-                  crossAxisCount: 3, 
-                  crossAxisSpacing: 10, 
-                  mainAxisSpacing: 10,  
-                  childAspectRatio: 2.2, 
+                  crossAxisCount: 3,
+                  crossAxisSpacing: 10,
+                  mainAxisSpacing: 10,
+                  childAspectRatio: 2.2,
                   children: [
                     _buildQuickAmountButton(10000),
-                    _buildQuickAmountButton(20000), 
+                    _buildQuickAmountButton(20000),
                     _buildQuickAmountButton(25000),
                     _buildQuickAmountButton(50000),
                     _buildQuickAmountButton(100000),
@@ -172,7 +184,11 @@ class _GenerateQRScreenState extends State<GenerateQRScreen> {
           // Amount Input
           Text(
             'Amount *',
-            style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.grey[700]),
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: Colors.grey[700],
+            ),
           ),
           SizedBox(height: 8),
           TextField(
@@ -181,7 +197,11 @@ class _GenerateQRScreenState extends State<GenerateQRScreen> {
             style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             decoration: InputDecoration(
               prefixText: 'Rp ',
-              prefixStyle: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87),
+              prefixStyle: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Colors.black87,
+              ),
               hintText: '0',
               filled: true,
               fillColor: Colors.grey[50],
@@ -210,7 +230,11 @@ class _GenerateQRScreenState extends State<GenerateQRScreen> {
           // Note Input
           Text(
             'Note (Optional)',
-            style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.grey[700]),
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: Colors.grey[700],
+            ),
           ),
           SizedBox(height: 8),
           TextField(
@@ -241,12 +265,18 @@ class _GenerateQRScreenState extends State<GenerateQRScreen> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primary,
                 padding: EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
                 elevation: 0,
               ),
               child: Text(
                 'Generate QR Code',
-                style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
           ),
@@ -264,7 +294,11 @@ class _GenerateQRScreenState extends State<GenerateQRScreen> {
             color: Colors.white,
             borderRadius: BorderRadius.circular(20),
             boxShadow: [
-              BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 20, offset: Offset(0, 8)),
+              BoxShadow(
+                color: Colors.black.withOpacity(0.1),
+                blurRadius: 20,
+                offset: Offset(0, 8),
+              ),
             ],
           ),
           child: Column(
@@ -273,7 +307,11 @@ class _GenerateQRScreenState extends State<GenerateQRScreen> {
               SizedBox(height: 8),
               Text(
                 merchantName,
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black87),
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
+                ),
               ),
               SizedBox(height: 24),
 
@@ -304,11 +342,18 @@ class _GenerateQRScreenState extends State<GenerateQRScreen> {
                 ),
                 child: Column(
                   children: [
-                    Text('Payment Amount', style: TextStyle(fontSize: 14, color: Colors.grey[600])),
+                    Text(
+                      'Payment Amount',
+                      style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                    ),
                     SizedBox(height: 4),
                     Text(
                       'Rp ${_amountController.text}',
-                      style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: AppColors.primary),
+                      style: TextStyle(
+                        fontSize: 28,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.primary,
+                      ),
                     ),
                     if (_noteController.text.isNotEmpty) ...[
                       SizedBox(height: 8),
@@ -328,7 +373,11 @@ class _GenerateQRScreenState extends State<GenerateQRScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.info_outline_rounded, color: Colors.grey[600], size: 18),
+                  Icon(
+                    Icons.info_outline_rounded,
+                    color: Colors.grey[600],
+                    size: 18,
+                  ),
                   SizedBox(width: 8),
                   Text(
                     'Scan this code to pay',
@@ -351,9 +400,17 @@ class _GenerateQRScreenState extends State<GenerateQRScreen> {
                 style: OutlinedButton.styleFrom(
                   padding: EdgeInsets.symmetric(vertical: 16),
                   side: BorderSide(color: AppColors.primary),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
-                child: Text('New Payment', style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold)),
+                child: Text(
+                  'New Payment',
+                  style: TextStyle(
+                    color: AppColors.primary,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
               ),
             ),
             SizedBox(width: 12),
@@ -363,9 +420,17 @@ class _GenerateQRScreenState extends State<GenerateQRScreen> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary,
                   padding: EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
-                child: Text('Done', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                child: Text(
+                  'Done',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
               ),
             ),
           ],
@@ -383,12 +448,13 @@ class _GenerateQRScreenState extends State<GenerateQRScreen> {
           _amountController.text = formatted;
           // Pindahin kursor ke belakang
           _amountController.selection = TextSelection.fromPosition(
-              TextPosition(offset: _amountController.text.length));
+            TextPosition(offset: _amountController.text.length),
+          );
         },
         borderRadius: BorderRadius.circular(8),
         child: Container(
           // Hapus padding horizontal, ganti Alignment.center
-          alignment: Alignment.center, 
+          alignment: Alignment.center,
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(8),

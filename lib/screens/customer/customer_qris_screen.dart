@@ -2,11 +2,14 @@
 
 import 'package:flutter/material.dart';
 import 'package:ezpay_test/constants/app_colors.dart';
+import 'package:ezpay_test/models/user.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:ezpay_test/screens/customer/payment_screen.dart';
 
 class CustomerQrisScreen extends StatefulWidget {
+  final User? user; // <-- added
+  CustomerQrisScreen({Key? key, this.user}) : super(key: key); // <-- added
   @override
   _CustomerQrisScreenState createState() => _CustomerQrisScreenState();
 }
@@ -119,7 +122,9 @@ class _CustomerQrisScreenState extends State<CustomerQrisScreen> {
     // Navigate to payment confirmation screen
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (_) => PaymentScreen(qrCode: code)),
+      MaterialPageRoute(
+        builder: (_) => PaymentScreen(qrCode: code, user: widget.user),
+      ),
     );
   }
 

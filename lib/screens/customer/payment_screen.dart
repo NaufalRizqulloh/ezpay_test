@@ -2,14 +2,18 @@
 
 import 'package:flutter/material.dart';
 import 'package:ezpay_test/constants/app_colors.dart';
+import 'package:ezpay_test/models/transaction.dart';
+import 'package:ezpay_test/models/user.dart';
 import 'package:ezpay_test/services/wallet_manager.dart';
 import 'package:ezpay_test/services/transaction_manager.dart';
 import 'dart:convert';
 
 class PaymentScreen extends StatefulWidget {
   final String qrCode;
+  final User? user;
 
-  PaymentScreen({required this.qrCode});
+  const PaymentScreen({Key? key, required this.qrCode, this.user})
+    : super(key: key);
 
   @override
   _PaymentScreenState createState() => _PaymentScreenState();
@@ -121,11 +125,17 @@ class _PaymentScreenState extends State<PaymentScreen> {
     TransactionManager().addTransaction(
       merchantId: paymentData!['merchant_id'],
       merchantName: paymentData!['merchant_name'],
-      customer: 'Customer', // You can add user name here
+      customer: widget.user?.name ?? 'Customer',
       amount: amount,
       paymentMethod: wallet['name'],
       transactionId: paymentData!['transaction_id'],
       note: paymentData!['note'] ?? '',
+    );
+
+    Transaction.markTransactionAsPaid(
+      paymentData!['transaction_id'],
+      widget.user?.name ?? 'Customer',
+      wallet['name'],
     );
 
     setState(() {

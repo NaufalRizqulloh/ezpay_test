@@ -3,8 +3,10 @@
 import 'package:flutter/material.dart';
 import 'package:ezpay_test/constants/app_colors.dart';
 import 'package:ezpay_test/models/user.dart';
+import 'package:ezpay_test/models/transaction.dart';
 import 'package:ezpay_test/screens/merchant/generate_qr_screen.dart';
 import 'package:ezpay_test/screens/merchant/transaction_history_screen.dart';
+import 'package:ezpay_test/screens/login.dart';
 import 'package:ezpay_test/services/transaction_manager.dart';
 import 'package:ezpay_test/services/wallet_manager.dart';
 
@@ -17,6 +19,7 @@ class MerchantHomeScreen extends StatefulWidget {
 }
 
 class _MerchantHomeScreenState extends State<MerchantHomeScreen> {
+  late List<Transaction> transactions;
   final String merchantId = "MERCHANT001";
   final String merchantName = "Warung Makan Sederhana";
 
@@ -33,6 +36,15 @@ class _MerchantHomeScreenState extends State<MerchantHomeScreen> {
   @override
   void initState() {
     super.initState();
+    // Filter Transaction model list for this merchant
+    transactions = Transaction.transactions
+        .where((t) => t.merchantId == merchantId)
+        .toList();
+    // Optional: initialize dummy data if your manager provides it
+    // TransactionManager().initializeDummyData();
+    print(
+      'Loaded ${transactions.length} transactions for merchant ${merchantId}',
+    );
     _transactionManager = TransactionManager();
     _walletManager = WalletManager();
 
@@ -54,18 +66,6 @@ class _MerchantHomeScreenState extends State<MerchantHomeScreen> {
 
   void _updateData() {
     setState(() {
-      recentTransactions = _transactionManager
-          .getMerchantTransactions(merchantId)
-          .take(4)
-          .toList();
-      todayRevenue = _transactionManager.getTodayRevenue(merchantId);
-      monthlyRevenue = _transactionManager.getMonthlyRevenue(merchantId);
-      todayTransactions = _transactionManager.getTodayTransactionCount(
-        merchantId,
-      );
-      monthlyTransactions = _transactionManager.getMonthlyTransactionCount(
-        merchantId,
-      );
       merchantBalance = _walletManager.getMerchantBalance(merchantId);
     });
   }
@@ -114,6 +114,36 @@ class _MerchantHomeScreenState extends State<MerchantHomeScreen> {
     );
   }
 
+  void _logout() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Logout'),
+          content: Text('Are you sure you want to logout?'),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop(); // Close the dialog
+              },
+              child: Text('No'),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop(); // Close the dialog
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(builder: (_) => LoginPage()),
+                );
+              },
+              child: Text('Yes'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   String _formatCurrency(double amount) {
     return 'Rp ${amount.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]}.')}';
   }
@@ -149,8 +179,8 @@ class _MerchantHomeScreenState extends State<MerchantHomeScreen> {
             onPressed: () {},
           ),
           IconButton(
-            icon: Icon(Icons.settings_outlined, color: Colors.white),
-            onPressed: () {},
+            icon: Icon(Icons.logout, color: Colors.white),
+            onPressed: _logout,
           ),
         ],
       ),
@@ -385,9 +415,9 @@ class _MerchantHomeScreenState extends State<MerchantHomeScreen> {
               shrinkWrap: true,
               physics: NeverScrollableScrollPhysics(),
               padding: EdgeInsets.symmetric(horizontal: 16),
-              itemCount: recentTransactions.length,
+              itemCount: transactions.length,
               itemBuilder: (context, index) {
-                final transaction = recentTransactions[index];
+                final transaction = transactions[index];
                 return _buildTransactionCard(transaction);
               },
             ),
@@ -454,7 +484,7 @@ class _MerchantHomeScreenState extends State<MerchantHomeScreen> {
     );
   }
 
-  Widget _buildTransactionCard(Map<String, dynamic> transaction) {
+  Widget _buildTransactionCard(Transaction transaction) {
     return Container(
       margin: EdgeInsets.only(bottom: 12),
       padding: EdgeInsets.all(16),
@@ -486,7 +516,7 @@ class _MerchantHomeScreenState extends State<MerchantHomeScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  transaction['customer'],
+                  transaction.paidBy,
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
@@ -495,14 +525,18 @@ class _MerchantHomeScreenState extends State<MerchantHomeScreen> {
                 ),
                 SizedBox(height: 4),
                 Text(
-                  transaction['time'],
+                  transaction.timePaid != null
+                      ? DateTime.fromMillisecondsSinceEpoch(
+                          transaction.timePaid!,
+                        ).toLocal().toString()
+                      : 'Pending',
                   style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                 ),
               ],
             ),
           ),
           Text(
-            _formatCurrency(transaction['amount']),
+            _formatCurrency(transaction.amount),
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.bold,

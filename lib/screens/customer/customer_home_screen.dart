@@ -7,6 +7,8 @@ import 'package:ezpay_test/constants/app_colors.dart';
 import 'package:ezpay_test/models/user.dart';
 
 import 'package:ezpay_test/screens/customer/customer_qris_screen.dart';
+import 'package:ezpay_test/screens/login.dart';
+import 'package:ezpay_test/screens/customer/payment_history.dart';
 
 import 'package:ezpay_test/services/wallet_manager.dart';
 
@@ -103,7 +105,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
   void _scanQris() {
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (_) => CustomerQrisScreen()),
+      MaterialPageRoute(builder: (_) => CustomerQrisScreen(user: widget.user)),
     );
   }
 
@@ -119,6 +121,45 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(SnackBar(content: Text('Add Wallet - Coming Soon')));
+  }
+
+  void _logout() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Logout'),
+          content: Text('Are you sure you want to logout?'),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop(); // Close the dialog
+              },
+              child: Text('No'),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop(); // Close the dialog
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(builder: (_) => LoginPage()),
+                );
+              },
+              child: Text('Yes'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _paymentHistory() {
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (_) => TransactionHistoryScreen(userName: widget.user!.name),
+      ),
+    );
   }
 
   String _formatCurrency(double amount) {
@@ -144,11 +185,11 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
         actions: [
           IconButton(
             icon: Icon(Icons.notifications_outlined, color: Colors.white),
-            onPressed: () {},
+            onPressed: _paymentHistory,
           ),
           IconButton(
-            icon: Icon(Icons.person_outline, color: Colors.white),
-            onPressed: () {},
+            icon: Icon(Icons.logout, color: Colors.white),
+            onPressed: _logout,
           ),
         ],
       ),
